@@ -1,0 +1,12 @@
+services:
+  excalidraw-boards:
+    build: .
+    container_name: excalidraw-boards
+    restart: unless-stopped
+    ports:
+      - "48372:3199"
+    volumes:
+      - boards-data:/data
+
+volumes:
+  boards-data:
