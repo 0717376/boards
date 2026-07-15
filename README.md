@@ -26,7 +26,7 @@ A chat panel beside the board: ask it to draw a diagram, lay ideas out as sticky
 
 - Runs on a **Claude subscription** via the [Claude Agent SDK](https://docs.anthropic.com/en/api/agent-sdk/overview) — a sidecar container (`agent/`) that needs an authorized [Claude CLI](https://docs.anthropic.com/en/docs/claude-code) on the host (its `~/.claude` OAuth creds are mounted in). No API keys.
 - Tools (`get_scene`, `add_mermaid`, `add_elements`, `update_elements`, `delete_elements`, `zoom_to`) are relayed over WebSocket and **executed in the user's browser** against the live `excalidrawAPI` — the assistant's edits go through the normal collab sync: every participant sees them, and Ctrl/Cmd+Z works.
-- Each board keeps its own conversation (survives page reloads, resets after 12 h idle).
+- Each board keeps its own conversation (survives page reloads, resets after 24 h idle).
 - Available to the board owner and edit-link collaborators; view-only visitors don't get it.
 - Without the `agent` container the app just works as usual — the chat simply isn't there.
 

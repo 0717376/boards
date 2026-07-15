@@ -6,7 +6,7 @@ SESSIONS_DIR = os.path.join(DATA_DIR, "sessions")
 CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "sonnet")
 
 # A per-board session idle beyond this window starts fresh. 0 disables.
-SESSION_FRESH_HOURS = float(os.environ.get("SESSION_FRESH_HOURS", "12"))
+SESSION_FRESH_HOURS = float(os.environ.get("SESSION_FRESH_HOURS", "24"))
 
 # Speech-to-text upstream (full URL of the transcribe endpoint); empty = voice off.
 ASR_UPSTREAM = os.environ.get("ASR_UPSTREAM", "")
