@@ -22,7 +22,6 @@ services:
       - ${CLAUDE_JSON:-~/.claude.json}:/seed/.claude.json:ro
     environment:
       - CLAUDE_MODEL=${CLAUDE_MODEL:-sonnet}
-      - SESSION_FRESH_HOURS=${SESSION_FRESH_HOURS:-24}
       - ASR_UPSTREAM=${ASR_UPSTREAM:-}
       - TZ=${TZ:-Europe/Moscow}
     extra_hosts:
