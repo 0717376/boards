@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useAgentChat } from "./useAgentChat.js";
 import { startRecording } from "./wav.js";
 import Markdown from "./Markdown.jsx";
+import { t } from "../i18n.js";
 
 function MicButton({ onText }) {
   const [state, setState] = useState("idle"); // idle | rec | busy
@@ -44,7 +45,7 @@ function MicButton({ onText }) {
     <button
       type="button"
       className={`agent-mic${state === "rec" ? " is-rec" : ""}`}
-      title={state === "rec" ? "Остановить и распознать" : "Надиктовать"}
+      title={state === "rec" ? t("mic_stop") : t("mic_start")}
       disabled={state === "busy"}
       onClick={toggle}
     >
@@ -111,24 +112,19 @@ export default function AgentChat({ boardId, token, api, onClose, asrEnabled }) 
   return (
     <aside className="agent-pane" ref={paneRef} onClick={(e) => e.stopPropagation()}>
       <header className="agent-head">
-        <span className="agent-title">Ассистент</span>
+        <span className="agent-title">{t("agent_title")}</span>
         <span className="agent-head-actions">
-          <button className="agent-clear" title="Начать разговор заново" onClick={clear}>
-            очистить
+          <button className="agent-clear" title={t("agent_clear_title")} onClick={clear}>
+            {t("agent_clear")}
           </button>
-          <button className="agent-close" title="Свернуть" onClick={onClose}>
+          <button className="agent-close" title={t("agent_close_title")} onClick={onClose}>
             ×
           </button>
         </span>
       </header>
 
       <div className="agent-log" ref={logRef}>
-        {empty && (
-          <div className="agent-empty">
-            Попросите нарисовать схему, разложить мысли по стикерам или навести порядок — я вижу
-            вашу доску и рисую прямо на ней.
-          </div>
-        )}
+        {empty && <div className="agent-empty">{t("agent_empty")}</div>}
         {messages.map((m) => (
           <Bubble key={m.id} m={m} />
         ))}
@@ -139,7 +135,7 @@ export default function AgentChat({ boardId, token, api, onClose, asrEnabled }) 
         <textarea
           ref={taRef}
           rows={1}
-          placeholder="Что нарисовать или поправить?"
+          placeholder={t("agent_placeholder")}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
@@ -152,7 +148,7 @@ export default function AgentChat({ boardId, token, api, onClose, asrEnabled }) 
         {asrEnabled && (
           <MicButton onText={(t) => t && setInput((v) => (v ? v.trimEnd() + " " + t : t))} />
         )}
-        <button className="agent-send" type="button" disabled={busy || !input.trim()} onClick={submit} title="Отправить">
+        <button className="agent-send" type="button" disabled={busy || !input.trim()} onClick={submit} title={t("agent_send")}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 19V5M5 12l7-7 7 7" />
           </svg>
@@ -164,7 +160,7 @@ export default function AgentChat({ boardId, token, api, onClose, asrEnabled }) 
 
 function Bubble({ m, live }) {
   return (
-    <div className={`agent-msg is-${m.role}`}>
+    <div className={`agent-msg is-${m.role}${live ? " is-live" : ""}`}>
       {m.tools?.length > 0 && (
         <div className="agent-tools">
           {m.tools.map((t, i) => (

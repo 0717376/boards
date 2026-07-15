@@ -1,53 +1,75 @@
-# Доски
+# Boards
 
-Self-hosted мультидосочный [Excalidraw](https://github.com/excalidraw/excalidraw): личный «Excalidraw+» на своём сервере, в одном Docker-контейнере, без регистрации и базы данных.
+**English** | [Русский](README.ru.md)
 
-## Возможности
+Self-hosted multi-board [Excalidraw](https://github.com/excalidraw/excalidraw): a personal "Excalidraw+" on your own server — one Docker container, no accounts, no database. With an optional AI assistant that draws on your boards.
 
-- **Несколько досок** — дашборд с живыми превью, переименование, дублирование через историю
-- **Свои доски у каждого** — анонимная идентификация по куке, никакой регистрации
-- **Шаринг по ссылке** — отдельные ссылки на редактирование и «только просмотр», отзыв доступа
-- **Совместное рисование в реальном времени** — WebSocket, слияние правок через `reconcileElements`
-- **Живые курсоры и следование** — курсоры участников с именами, режим «следовать за участником» как в Miro; сглаживание уровня игрового неткода (адаптивный джиттер-буфер, сплайн Катмулла-Рома, dead reckoning)
-- **История версий** — автоснапшоты каждые 10 минут, превью и откат к любой версии
-- **Корзина** — мягкое удаление, восстановление, автоочистка через 30 дней
-- **PWA** — ставится на телефон/десктоп как приложение
-- **AI-ассистент** (опционально) — чат сбоку доски: рисует диаграммы (Mermaid и произвольные элементы), правит и раскладывает существующее, наводит камеру; голосовой ввод через внешний ASR-сервис. Работает на подписке Claude через [Claude Agent SDK](https://docs.anthropic.com/en/api/agent-sdk/overview) — sidecar-контейнер `agent/`, инструменты исполняются в браузере поверх живой сцены
+![Dashboard](docs/screenshots/en/dashboard.png)
 
-## AI-ассистент
+## Features
 
-Ассистент — отдельный контейнер (`agent/`, FastAPI + `claude-agent-sdk`), которому нужен авторизованный [Claude CLI](https://docs.anthropic.com/en/docs/claude-code) на хосте: его OAuth-креды (`~/.claude`) монтируются внутрь. Без контейнера `agent` приложение работает как обычно, просто чат недоступен.
+- **Multiple boards** — a dashboard with live thumbnails, inline rename, tilt-on-hover paper cards
+- **Everyone gets their own boards** — anonymous cookie identity, zero signup
+- **Share by link** — separate *edit* and *view-only* links, revocable at any time
+- **Realtime co-drawing** — WebSocket rooms, edits merged via `reconcileElements`
+- **Live cursors & follow mode** — Miro-style presence with name tags; click an avatar to follow their camera. Game-netcode smoothing: adaptive jitter buffer, Catmull-Rom splines, dead reckoning
+- **Version history** — auto-snapshots every 10 minutes of work, visual preview, one-click restore
+- **Trash** — soft delete, restore within 30 days, then auto-purge
+- **PWA** — installs on phone and desktop like an app
+- **English & Russian UI** — auto-detected from the browser, switchable on the dashboard
 
-- У каждой доски своя сессия разговора (переживает перезагрузку страницы, сбрасывается после 12 ч простоя).
-- Инструменты агента (`get_scene`, `add_mermaid`, `add_elements`, `update_elements`, `delete_elements`, `zoom_to`) исполняются в браузере пользователя через WebSocket-команды — правки идут обычным путём совместного редактирования: их видят все участники, работает Ctrl/Cmd+Z.
-- Доступ: владелец доски и пришедшие по edit-ссылке; в режиме «только просмотр» ассистента нет.
-- Голосовой ввод: переменная `ASR_UPSTREAM` — URL эндпоинта распознавания (multipart-поле `audio`, WAV 16 кГц); пусто — кнопки микрофона нет.
-- Модель — `CLAUDE_MODEL` (по умолчанию `sonnet`). Пути к кредам — `CLAUDE_DIR`/`CLAUDE_JSON`.
+## AI assistant (optional)
 
-## Стек
+![AI assistant](docs/screenshots/en/board-assistant.png)
 
-- Фронтенд: Vite + React 19 + `@excalidraw/excalidraw`
-- Бэкенд: Node.js без фреймворков (`server.js`) + `ws`; доски хранятся JSON-файлами
-- Деплой: Docker Compose, один контейнер, данные в volume
+A chat panel beside the board: ask it to draw a diagram, lay ideas out as sticky notes, recolor, align, or tidy up — it sees the live scene and draws right onto it. Voice input via an external ASR service.
 
-## Запуск
+- Runs on a **Claude subscription** via the [Claude Agent SDK](https://docs.anthropic.com/en/api/agent-sdk/overview) — a sidecar container (`agent/`) that needs an authorized [Claude CLI](https://docs.anthropic.com/en/docs/claude-code) on the host (its `~/.claude` OAuth creds are mounted in). No API keys.
+- Tools (`get_scene`, `add_mermaid`, `add_elements`, `update_elements`, `delete_elements`, `zoom_to`) are relayed over WebSocket and **executed in the user's browser** against the live `excalidrawAPI` — the assistant's edits go through the normal collab sync: every participant sees them, and Ctrl/Cmd+Z works.
+- Each board keeps its own conversation (survives page reloads, resets after 12 h idle).
+- Available to the board owner and edit-link collaborators; view-only visitors don't get it.
+- Without the `agent` container the app just works as usual — the chat simply isn't there.
+
+## Stack
+
+- Frontend: Vite + React 19 + `@excalidraw/excalidraw` (+ `@excalidraw/mermaid-to-excalidraw`, lazy-loaded)
+- Backend: zero-framework Node.js (`server.js`) + `ws`; boards stored as JSON files
+- Assistant: FastAPI + `claude-agent-sdk` sidecar (`agent/`)
+- Deploy: Docker Compose, data in volumes
+
+## Quick start
 
 ```bash
 npm install
 npm run build
 docker compose up -d --build
-# приложение на http://localhost:48372
+# app at http://localhost:48372
 ```
 
-Для разработки:
+For the AI assistant, make sure the host has an authorized Claude CLI (`~/.claude`), and optionally set `ASR_UPSTREAM` for voice input (see below).
+
+Development:
 
 ```bash
-node server.js          # API+WS на :3199
-npm run dev             # Vite с прокси на :3199
+node server.js          # API + WS on :3199
+npm run dev             # Vite with a proxy to :3199
 ```
 
-Порт и путь к данным настраиваются через `PORT` и `DATA_DIR` (см. `docker-compose.yml`).
+### Environment variables
 
-## Лицензии
+| Variable | Default | What it does |
+|---|---|---|
+| `PORT` / `DATA_DIR` | `3199` / `/data` | app port and data dir (see `docker-compose.yml`) |
+| `AGENT_UPSTREAM` | `agent:8000` | assistant sidecar address; empty — assistant off |
+| `CLAUDE_MODEL` | `sonnet` | assistant model (`sonnet`/`opus`/`haiku`) |
+| `CLAUDE_DIR` / `CLAUDE_JSON` | `~/.claude` / `~/.claude.json` | Claude CLI creds mounted into the sidecar |
+| `ASR_UPSTREAM` | — | speech-to-text endpoint URL (multipart field `audio`, WAV 16 kHz); empty — no mic button |
+| `TZ` | `Europe/Moscow` | sidecar timezone |
 
-Код — [MIT](LICENSE). [Excalidraw](https://github.com/excalidraw/excalidraw) — MIT, подключается npm-пакетом. Шрифт [Caveat](https://fonts.google.com/specimen/Caveat) (`public/appfonts`) — [SIL Open Font License](https://openfontlicense.org/). Проект не аффилирован с Excalidraw.
+## Licenses
+
+- This project — [MIT](LICENSE)
+- [Excalidraw](https://github.com/excalidraw/excalidraw) — MIT © Excalidraw contributors
+- Caveat font — SIL OFL 1.1
+
+Not affiliated with Excalidraw — this is an independent self-hosted wrapper around their open-source editor.

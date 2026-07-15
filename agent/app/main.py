@@ -47,10 +47,14 @@ def _context_prefix(context: dict) -> str:
 
 
 @app.websocket("/chat/ws")
-async def chat_ws(ws: WebSocket, board: str = "", uid: str = ""):
+async def chat_ws(ws: WebSocket, board: str = "", uid: str = "", lang: str = "ru"):
     if not sessions.BOARD_RE.match(board):
         await ws.close(code=4001)
         return
+    busy_msg = (
+        "Подождите, я ещё думаю над прошлым сообщением." if lang == "ru"
+        else "Hang on — still working on the previous message."
+    )
     await ws.accept()
     logger.info("chat ws connected (board %s)", board[:8])
 
@@ -84,10 +88,10 @@ async def chat_ws(ws: WebSocket, board: str = "", uid: str = ""):
                 if not text:
                     continue
                 if turn and not turn.done():
-                    await emit({"t": "error", "text": "Подождите, я ещё думаю над прошлым сообщением."})
+                    await emit({"t": "error", "text": busy_msg})
                     continue
                 prompt = _context_prefix(data.get("context") or {}) + text
-                turn = asyncio.create_task(agent.run_turn(emit, executor, board, prompt))
+                turn = asyncio.create_task(agent.run_turn(emit, executor, board, prompt, lang))
 
     except WebSocketDisconnect:
         logger.info("chat ws disconnected (board %s)", board[:8])

@@ -11,6 +11,7 @@ import "@excalidraw/excalidraw/index.css";
 import { getBoard, updateBoard, enableShare, disableShare, listVersions, getVersion, restoreVersion } from "./api.js";
 import { getUserName, setUserName, getUserHue, hueId, avatarColor } from "./user.js";
 import AgentChat from "./agent/AgentChat.jsx";
+import { t, lang, locale } from "./i18n.js";
 
 const SAVE_DEBOUNCE_MS = 800;
 const SYNC_THROTTLE_MS = 120;
@@ -123,7 +124,7 @@ function loadViewport(id) {
 }
 
 const fmtVersion = (iso) =>
-  new Date(iso).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+  new Date(iso).toLocaleString(locale, { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
 
 const ClockIcon = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -512,7 +513,7 @@ export default function BoardEditor({ id, token }) {
         if (api) api.updateScene({ collaborators: new Map() });
         if (closedByUs || !mounted.current) return;
         if (ev.code === 4003) {
-          setError("Владелец закрыл доступ к доске");
+          setError(t("owner_revoked"));
           return;
         }
         if (ev.code === 4004) {
@@ -709,23 +710,23 @@ export default function BoardEditor({ id, token }) {
   if (error)
     return (
       <div className="editor-error">
-        <h2>Не получилось открыть доску</h2>
+        <h2>{t("err_open_h")}</h2>
         <p>{error}</p>
-        <a href="#/">← К моим доскам</a>
+        <a href="#/">{t("err_back")}</a>
       </div>
     );
-  if (!board) return <div className="editor-error"><h2>Открываем доску…</h2></div>;
+  if (!board) return <div className="editor-error"><h2>{t("opening")}</h2></div>;
 
   const statusText = isViewer
-    ? "режим просмотра"
+    ? t("status_viewer")
     : wsOpen && peers.length > 0
-    ? "синхронизация онлайн"
-    : { saved: "сохранено", saving: "сохранение…", error: "не сохранилось — проверьте сеть" }[status];
+    ? t("status_online")
+    : { saved: t("status_saved"), saving: t("status_saving"), error: t("status_error") }[status];
 
   return (
     <div className="editor">
       <header className="editor-header">
-        <a className="editor-back" href="#/" title="К моим доскам">←</a>
+        <a className="editor-back" href="#/" title={t("back_title")}>←</a>
 
         {editingName && isOwner ? (
           <input
@@ -741,7 +742,7 @@ export default function BoardEditor({ id, token }) {
         ) : (
           <span
             className={`editor-name${isOwner ? " editable" : ""}`}
-            title={isOwner ? "Нажмите, чтобы переименовать" : board.name}
+            title={isOwner ? t("rename_title") : board.name}
             onClick={() => isOwner && setEditingName(true)}
           >
             {board.name}
@@ -758,7 +759,7 @@ export default function BoardEditor({ id, token }) {
                   key={p.pid}
                   className={`peer-dot${followPid === p.pid ? " is-followed" : ""}`}
                   style={{ background: p.color }}
-                  title={followPid === p.pid ? `Перестать следовать за «${p.name}»` : `Следовать за «${p.name}»`}
+                  title={followPid === p.pid ? t("unfollow", { name: p.name }) : t("follow", { name: p.name })}
                   onClick={() => toggleFollow(p.pid)}
                 >
                   {p.name[0]?.toUpperCase()}
@@ -770,56 +771,56 @@ export default function BoardEditor({ id, token }) {
           <input
             className="editor-user"
             defaultValue={userName}
-            title="Ваше имя для совместной работы"
+            title={t("your_name_title")}
             onBlur={(e) => commitUserName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && e.target.blur()}
           />
           {!isViewer && (
             <button
               className={`btn-agent${agentOpen ? " is-on" : ""}`}
-              title="AI-ассистент: нарисует и поправит по вашей просьбе"
+              title={t("agent_btn_title")}
               onClick={() => setAgentOpen((v) => !v)}
             >
-              <SparkIcon /> Ассистент
+              <SparkIcon /> {t("agent_btn")}
             </button>
           )}
           {!isViewer && (
-            <button className="btn-hist" title="История версий" onClick={onHistory}>
-              <ClockIcon /> История
+            <button className="btn-hist" title={t("history_title")} onClick={onHistory}>
+              <ClockIcon /> {t("history")}
             </button>
           )}
           {isOwner && (
             <button className="btn-share" onClick={onShare}>
-              {tokens.edit ? "Доступ открыт" : "Поделиться"}
+              {tokens.edit ? t("share_open") : t("share")}
             </button>
           )}
         </div>
 
         {sharePop && (
           <div className="share-pop">
-            <p className="share-label">Рисовать вместе — все с этой ссылкой могут редактировать:</p>
+            <p className="share-label">{t("share_edit_label")}</p>
             <div className="share-row">
               <input readOnly value={linkFor(tokens.edit)} onFocus={(e) => e.target.select()} />
-              <button className="btn-primary" onClick={() => copy(tokens.edit)}>Скопировать</button>
+              <button className="btn-primary" onClick={() => copy(tokens.edit)}>{t("copy")}</button>
             </div>
-            <p className="share-label">Только посмотреть — рисунок виден, но менять нельзя:</p>
+            <p className="share-label">{t("share_view_label")}</p>
             <div className="share-row">
               <input readOnly value={linkFor(tokens.view)} onFocus={(e) => e.target.select()} />
-              <button className="btn-primary" onClick={() => copy(tokens.view)}>Скопировать</button>
+              <button className="btn-primary" onClick={() => copy(tokens.view)}>{t("copy")}</button>
             </div>
             <div className="share-actions">
-              <button className="btn-danger-link" onClick={revokeShare}>Закрыть весь доступ</button>
-              <button className="btn-link" onClick={() => setSharePop(false)}>Готово</button>
+              <button className="btn-danger-link" onClick={revokeShare}>{t("revoke")}</button>
+              <button className="btn-link" onClick={() => setSharePop(false)}>{t("done")}</button>
             </div>
           </div>
         )}
 
         {histOpen && (
           <div className="hist-pop">
-            <p className="hist-title">История версий</p>
-            {versions === null && <p className="hist-empty">Загружаем…</p>}
+            <p className="hist-title">{t("history_title")}</p>
+            {versions === null && <p className="hist-empty">{t("hist_loading")}</p>}
             {versions?.length === 0 && (
-              <p className="hist-empty">Версий пока нет — они сохраняются сами каждые 10 минут работы над доской.</p>
+              <p className="hist-empty">{t("hist_none")}</p>
             )}
             {versions?.length > 0 && (
               <div className="hist-body">
@@ -836,16 +837,16 @@ export default function BoardEditor({ id, token }) {
                   ))}
                 </ul>
                 <div className="hist-preview">
-                  {!preview && <p className="hist-empty">Выберите версию слева, чтобы посмотреть её</p>}
-                  {preview?.img === null && <p className="hist-empty">Рисуем превью…</p>}
-                  {preview?.img === "error" && <p className="hist-empty">Превью не получилось, но восстановить всё равно можно</p>}
+                  {!preview && <p className="hist-empty">{t("hist_pick")}</p>}
+                  {preview?.img === null && <p className="hist-empty">{t("hist_prev_loading")}</p>}
+                  {preview?.img === "error" && <p className="hist-empty">{t("hist_prev_error")}</p>}
                   {preview?.img && preview.img !== "error" && <img src={preview.img} alt="" />}
                   {preview && (
                     <>
                       <button className="btn-primary" disabled={restoring} onClick={onRestoreVersion}>
-                        {restoring ? "Восстанавливаем…" : "Восстановить эту версию"}
+                        {restoring ? t("hist_restoring") : t("hist_restore")}
                       </button>
-                      <p className="hist-note">Текущий рисунок тоже сохранится в истории.</p>
+                      <p className="hist-note">{t("hist_note")}</p>
                     </>
                   )}
                 </div>
@@ -866,7 +867,7 @@ export default function BoardEditor({ id, token }) {
       >
         {followPid && (
           <div className="follow-pill" style={{ borderColor: peers.find((p) => p.pid === followPid)?.color }}>
-            Следуете за «{peers.find((p) => p.pid === followPid)?.name}» · Esc — отстать
+            {t("follow_pill", { name: peers.find((p) => p.pid === followPid)?.name })}
           </div>
         )}
         {agentOpen && !isViewer && (
@@ -880,7 +881,7 @@ export default function BoardEditor({ id, token }) {
         )}
         <Excalidraw
           excalidrawAPI={setApi}
-          langCode="ru-RU"
+          langCode={lang === "ru" ? "ru-RU" : "en"}
           initialData={{
             elements: board.scene?.elements || [],
             appState: { ...board.scene?.appState, ...loadViewport(id) },

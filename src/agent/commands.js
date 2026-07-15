@@ -88,6 +88,37 @@ function getScene(api) {
   };
 }
 
+/** Наводит камеру на элементы, учитывая, что часть холста закрыта панелью
+ * ассистента (справа на десктопе, снизу на мобильном). */
+function fitTo(api, els) {
+  if (!els.length) return;
+  const st = api.getAppState();
+  let cutRight = 0;
+  let cutBottom = 0;
+  const pane = document.querySelector(".agent-pane");
+  if (pane) {
+    const r = pane.getBoundingClientRect();
+    if (r.width < window.innerWidth * 0.8) cutRight = Math.max(0, window.innerWidth - r.left);
+    else cutBottom = Math.max(0, window.innerHeight - r.top);
+  }
+  const pad = 60;
+  const availW = Math.max(120, (st.width || window.innerWidth) - cutRight - pad * 2);
+  const availH = Math.max(120, (st.height || window.innerHeight) - cutBottom - pad * 2);
+  const bb = bbox(els);
+  const w = Math.max(1, bb.maxX - bb.minX);
+  const h = Math.max(1, bb.maxY - bb.minY);
+  const zoom = Math.min(2, Math.max(0.05, Math.min(availW / w, availH / h, 1)));
+  const visCx = (pad + availW / 2) / zoom;
+  const visCy = (pad + availH / 2) / zoom;
+  api.updateScene({
+    appState: {
+      scrollX: visCx - (bb.minX + w / 2),
+      scrollY: visCy - (bb.minY + h / 2),
+      zoom: { value: zoom },
+    },
+  });
+}
+
 function appendElements(api, newEls) {
   api.updateScene({
     elements: [...api.getSceneElementsIncludingDeleted(), ...newEls],
@@ -139,7 +170,7 @@ async function addMermaid(api, args) {
   newEls = newEls.map((el) => ({ ...el, x: el.x + dx, y: el.y + dy }));
   if (parsed.files && Object.keys(parsed.files).length) api.addFiles(Object.values(parsed.files));
   appendElements(api, newEls);
-  api.scrollToContent(newEls, { fitToViewport: true, animate: true, viewportZoomFactor: 0.8 });
+  fitTo(api, newEls);
   return { ok: true, added: newEls.map((e) => e.id), bounds: bbox(newEls) };
 }
 
@@ -214,7 +245,7 @@ function zoomTo(api, args) {
   if (!Array.isArray(ids)) ids = [];
   const els = ids.length ? api.getSceneElements().filter((e) => ids.includes(e.id)) : api.getSceneElements();
   if (!els.length) return { ok: false, error: "элементы не найдены" };
-  api.scrollToContent(els, { fitToViewport: true, animate: true, viewportZoomFactor: 0.7 });
+  fitTo(api, els);
   return { ok: true };
 }
 

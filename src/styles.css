@@ -1110,3 +1110,23 @@ button {
   white-space: pre-wrap;
   overflow-wrap: break-word;
 }
+
+.dash-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+.lang-toggle {
+  border: none;
+  background: none;
+  padding: 4px 6px;
+  font-family: "Caveat", cursive;
+  font-weight: 700;
+  font-size: 22px;
+  color: #a49e8f;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.lang-toggle:hover {
+  color: #1f1e24;
+}

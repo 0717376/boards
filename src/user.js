@@ -1,5 +1,13 @@
-const ADJ = ["Быстрый", "Хитрый", "Тихий", "Смелый", "Мудрый", "Весёлый", "Ловкий", "Добрый"];
-const ANIMAL = ["ёж", "лис", "кот", "сокол", "барсук", "бобр", "волк", "енот"];
+import { lang } from "./i18n.js";
+
+const ADJ =
+  lang === "ru"
+    ? ["Быстрый", "Хитрый", "Тихий", "Смелый", "Мудрый", "Весёлый", "Ловкий", "Добрый"]
+    : ["Swift", "Sly", "Quiet", "Brave", "Wise", "Merry", "Nimble", "Kind"];
+const ANIMAL =
+  lang === "ru"
+    ? ["ёж", "лис", "кот", "сокол", "барсук", "бобр", "волк", "енот"]
+    : ["hedgehog", "fox", "cat", "falcon", "badger", "beaver", "wolf", "raccoon"];
 
 // Excalidraw paints remote cursors hsl(hash(collaborator.id) % 37 * 10, 100%, 83%) and ignores
 // any color we pass. The hash input is ours though, so we engineer ids that land on calm hues.

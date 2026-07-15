@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { executeCommand } from "./commands.js";
+import { t, lang } from "../i18n.js";
 
 const TOOL_LABELS = {
-  get_scene: "смотрю на доску",
-  add_mermaid: "рисую схему",
-  add_elements: "добавляю элементы",
-  update_elements: "правлю элементы",
-  delete_elements: "удаляю элементы",
-  zoom_to: "показываю результат",
+  get_scene: t("tool_get_scene"),
+  add_mermaid: t("tool_add_mermaid"),
+  add_elements: t("tool_add_elements"),
+  update_elements: t("tool_update_elements"),
+  delete_elements: t("tool_delete_elements"),
+  zoom_to: t("tool_zoom_to"),
 };
 
 export function useAgentChat({ boardId, token, apiRef }) {
@@ -22,7 +23,7 @@ export function useAgentChat({ boardId, token, apiRef }) {
       const existing = wsRef.current;
       if (existing && existing.readyState === WebSocket.OPEN) return resolve(existing);
       const proto = location.protocol === "https:" ? "wss" : "ws";
-      const ws = new WebSocket(`${proto}://${location.host}/agent/chat?board=${boardId}&token=${token || ""}`);
+      const ws = new WebSocket(`${proto}://${location.host}/agent/chat?board=${boardId}&token=${token || ""}&lang=${lang}`);
       wsRef.current = ws;
       ws.onopen = () => resolve(ws);
       ws.onerror = () => reject(new Error("ws error"));
@@ -35,11 +36,13 @@ export function useAgentChat({ boardId, token, apiRef }) {
           streamRef.current = { ...s };
           setStreaming(streamRef.current);
         } else if (m.t === "tool") {
-          const s = streamRef.current ?? { id: "t", text: "", tools: [] };
-          const label = TOOL_LABELS[m.name] || m.name;
-          if (s.tools.at(-1) !== label) s.tools = [...s.tools, label];
-          streamRef.current = { ...s };
-          setStreaming(streamRef.current);
+          const label = TOOL_LABELS[m.name]; // служебные тулы (ToolSearch и т.п.) не показываем
+          if (label) {
+            const s = streamRef.current ?? { id: "t", text: "", tools: [] };
+            if (s.tools.at(-1) !== label) s.tools = [...s.tools, label];
+            streamRef.current = { ...s };
+            setStreaming(streamRef.current);
+          }
         } else if (m.t === "cmd") {
           (async () => {
             let result;
@@ -76,7 +79,7 @@ export function useAgentChat({ boardId, token, apiRef }) {
         wsRef.current = null;
         const s = streamRef.current;
         if (s) {
-          s.text = (s.text ? s.text + "\n\n" : "") + "⚠ Связь с ассистентом оборвалась.";
+          s.text = (s.text ? s.text + "\n\n" : "") + t("agent_disconnected");
           setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "assistant", text: s.text, tools: s.tools }]);
           streamRef.current = null;
           setStreaming(null);
@@ -105,7 +108,7 @@ export function useAgentChat({ boardId, token, apiRef }) {
         streamRef.current = null;
         setStreaming(null);
         setBusy(false);
-        setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "assistant", text: "Не получилось связаться с ассистентом. Попробуйте ещё раз." }]);
+        setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "assistant", text: t("agent_offline") }]);
       }
     },
     [connect, apiRef]

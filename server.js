@@ -577,9 +577,10 @@ async function upgradeAgent(req, socket, head, url) {
     const board = await readBoard(boardId);
     if (board.deletedAt || !canEdit(board, uid, token)) throw new Error("forbidden");
     const { host, port } = agentTarget();
+    const lang = url.searchParams.get("lang") === "en" ? "en" : "ru";
     const up = net.connect(port, host, () => {
       up.write(
-        `GET /chat/ws?board=${encodeURIComponent(boardId)}&uid=${encodeURIComponent(uid)} HTTP/1.1\r\n` +
+        `GET /chat/ws?board=${encodeURIComponent(boardId)}&uid=${encodeURIComponent(uid)}&lang=${lang} HTTP/1.1\r\n` +
           `Host: ${host}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n` +
           `Sec-WebSocket-Key: ${req.headers["sec-websocket-key"]}\r\n` +
           `Sec-WebSocket-Version: ${req.headers["sec-websocket-version"] || "13"}\r\n\r\n`

@@ -46,11 +46,12 @@ def build_options(resume: str | None) -> ClaudeAgentOptions:
     )
 
 
-def _error_text(m: ResultMessage) -> str:
+def _error_text(m: ResultMessage, lang: str = "ru") -> str:
     blob = " ".join(str(x) for x in (m.result, getattr(m, "errors", None), getattr(m, "api_error_status", None)) if x).lower()
     if "context" in blob or "too long" in blob or "max tokens" in blob:
-        return "Контекст разговора переполнен — нажмите «очистить» и начните заново."
-    return "Ошибка Claude. Попробуйте очистить контекст."
+        return ("Контекст разговора переполнен — нажмите «очистить» и начните заново." if lang == "ru"
+                else "The conversation context is full — press “clear” and start over.")
+    return "Ошибка Claude. Попробуйте очистить контекст." if lang == "ru" else "Claude error. Try clearing the context."
 
 
 class _StaleSession(Exception):
@@ -62,22 +63,28 @@ def _is_stale(exc: Exception) -> bool:
 
 
 async def run_turn(emit: Emit, executor: board_tools.BrowserExecutor,
-                   board_id: str, message: str) -> None:
+                   board_id: str, message: str, lang: str = "ru") -> None:
     """One chat turn for one board. Serialized per board by sessions.lock_for."""
     async with sessions.lock_for(board_id):
-        message = f"{clock.stamp()}\n{message}"
+        # Системный промпт русский — при английском интерфейсе напоминаем про язык явно.
+        lang_note = (
+            "[UI language: English — reply AND label everything you draw in English, "
+            "unless the user writes in another language.]\n"
+            if lang == "en" else ""
+        )
+        message = f"{clock.stamp(lang)}\n{lang_note}{message}"
         token = board_tools.current_executor.set(executor)
         try:
-            await _run(emit, board_id, message)
+            await _run(emit, board_id, message, lang)
         except _StaleSession:
             logger.warning("stale session for board %s; retrying fresh", board_id[:8])
             sessions.clear(board_id)
-            await _run(emit, board_id, message)
+            await _run(emit, board_id, message, lang)
         finally:
             board_tools.current_executor.reset(token)
 
 
-async def _run(emit: Emit, board_id: str, message: str) -> None:
+async def _run(emit: Emit, board_id: str, message: str, lang: str = "ru") -> None:
     sid, expired = sessions.load(board_id)
     if expired:
         message = EXPIRED_NOTE + message
@@ -126,7 +133,7 @@ async def _run(emit: Emit, board_id: str, message: str) -> None:
             elif isinstance(m, ResultMessage):
                 final_sid = m.session_id or sid
                 if m.is_error:
-                    await emit({"t": "error", "text": _error_text(m)})
+                    await emit({"t": "error", "text": _error_text(m, lang)})
 
         sessions.save(board_id, final_sid)
         await emit({"t": "done"})
