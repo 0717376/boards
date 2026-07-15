@@ -10,6 +10,7 @@ import {
 import "@excalidraw/excalidraw/index.css";
 import { getBoard, updateBoard, enableShare, disableShare, listVersions, getVersion, restoreVersion } from "./api.js";
 import { getUserName, setUserName, getUserHue, hueId, avatarColor } from "./user.js";
+import AgentChat from "./agent/AgentChat.jsx";
 
 const SAVE_DEBOUNCE_MS = 800;
 const SYNC_THROTTLE_MS = 120;
@@ -131,6 +132,13 @@ const ClockIcon = () => (
   </svg>
 );
 
+const SparkIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 3c.6 3.8 2.4 5.9 6.5 6.5-4.1.9-5.9 2.9-6.5 6.5-.6-3.6-2.4-5.6-6.5-6.5C9.6 8.9 11.4 6.8 12 3z" />
+    <path d="M19 14.5c.3 1.7 1 2.6 2.5 3-1.5.4-2.2 1.3-2.5 3-.3-1.7-1-2.6-2.5-3 1.5-.4 2.2-1.3 2.5-3z" />
+  </svg>
+);
+
 function throttle(fn, ms) {
   let timer = null;
   let queued = false;
@@ -169,6 +177,9 @@ export default function BoardEditor({ id, token }) {
   const [restoring, setRestoring] = useState(false);
   const [tokens, setTokens] = useState({ edit: null, view: null });
   const [userName, setName] = useState(getUserName);
+  // На десктопе ассистент открыт сразу; на мобильном — свёрнут, чтобы не загораживать доску.
+  const [agentOpen, setAgentOpen] = useState(() => window.matchMedia("(min-width: 900px)").matches);
+  const [agentInfo, setAgentInfo] = useState(null); // {ok, asr} | null = недоступен
 
   const wsRef = useRef(null);
   const lastVersion = useRef(-1);
@@ -208,6 +219,15 @@ export default function BoardEditor({ id, token }) {
 
   const isOwner = board?.role === "owner";
   const isViewer = board?.role === "viewer";
+
+  /* ---------- AI-ассистент: доступен, если sidecar жив и есть право редактировать ---------- */
+  useEffect(() => {
+    if (!board || isViewer) return;
+    fetch("/agent/health")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((info) => info?.ok && setAgentInfo(info))
+      .catch(() => {});
+  }, [board, isViewer]);
 
   /* ---------- REST autosave (fallback when no live connection) ---------- */
   const flushScene = useCallback(async () => {
@@ -755,6 +775,15 @@ export default function BoardEditor({ id, token }) {
             onKeyDown={(e) => e.key === "Enter" && e.target.blur()}
           />
           {!isViewer && (
+            <button
+              className={`btn-agent${agentOpen ? " is-on" : ""}`}
+              title="AI-ассистент: нарисует и поправит по вашей просьбе"
+              onClick={() => setAgentOpen((v) => !v)}
+            >
+              <SparkIcon /> Ассистент
+            </button>
+          )}
+          {!isViewer && (
             <button className="btn-hist" title="История версий" onClick={onHistory}>
               <ClockIcon /> История
             </button>
@@ -839,6 +868,15 @@ export default function BoardEditor({ id, token }) {
           <div className="follow-pill" style={{ borderColor: peers.find((p) => p.pid === followPid)?.color }}>
             Следуете за «{peers.find((p) => p.pid === followPid)?.name}» · Esc — отстать
           </div>
+        )}
+        {agentOpen && !isViewer && (
+          <AgentChat
+            boardId={id}
+            token={token}
+            api={api}
+            asrEnabled={agentInfo ? !!agentInfo.asr : true}
+            onClose={() => setAgentOpen(false)}
+          />
         )}
         <Excalidraw
           excalidrawAPI={setApi}

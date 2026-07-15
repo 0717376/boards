@@ -1,4 +1,5 @@
 import http from "node:http";
+import net from "node:net";
 import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
@@ -536,6 +537,69 @@ async function handleStatic(req, res, url) {
   }
 }
 
+/* ---------- agent sidecar proxy ---------- */
+
+const AGENT_UPSTREAM = process.env.AGENT_UPSTREAM || ""; // "host:port"; empty = агент выключен
+
+function agentTarget() {
+  const [host, port] = AGENT_UPSTREAM.split(":");
+  return { host, port: Number(port || 8000) };
+}
+
+async function handleAgent(req, res, url) {
+  if (!AGENT_UPSTREAM) return send(res, 503, { error: "agent disabled" });
+  let target = null;
+  if (req.method === "GET" && url.pathname === "/agent/health") target = "/health";
+  else if (req.method === "POST" && url.pathname === "/agent/asr") target = "/asr/transcribe";
+  if (!target) return send(res, 404, { error: "not found" });
+  const { host, port } = agentTarget();
+  const headers = { "content-type": req.headers["content-type"] || "application/octet-stream" };
+  if (req.headers["content-length"]) headers["content-length"] = req.headers["content-length"];
+  const preq = http.request({ host, port, path: target, method: req.method, headers }, (pres) => {
+    res.writeHead(pres.statusCode || 502, { "Content-Type": pres.headers["content-type"] || "application/json" });
+    pres.pipe(res);
+  });
+  preq.on("error", () => {
+    if (!res.headersSent) send(res, 502, { error: "agent unavailable" });
+    else res.destroy();
+  });
+  req.pipe(preq);
+}
+
+// WS upgrade for /agent/chat: права проверяются здесь (у sidecar-а нет доступа к доскам),
+// затем сырой TCP-пайп до контейнера агента.
+async function upgradeAgent(req, socket, head, url) {
+  try {
+    if (!AGENT_UPSTREAM) throw new Error("disabled");
+    const boardId = url.searchParams.get("board") || "";
+    const token = url.searchParams.get("token") || "";
+    const uid = parseCookies(req.headers.cookie).uid || "";
+    const board = await readBoard(boardId);
+    if (board.deletedAt || !canEdit(board, uid, token)) throw new Error("forbidden");
+    const { host, port } = agentTarget();
+    const up = net.connect(port, host, () => {
+      up.write(
+        `GET /chat/ws?board=${encodeURIComponent(boardId)}&uid=${encodeURIComponent(uid)} HTTP/1.1\r\n` +
+          `Host: ${host}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n` +
+          `Sec-WebSocket-Key: ${req.headers["sec-websocket-key"]}\r\n` +
+          `Sec-WebSocket-Version: ${req.headers["sec-websocket-version"] || "13"}\r\n\r\n`
+      );
+      if (head?.length) up.write(head);
+      socket.pipe(up);
+      up.pipe(socket);
+    });
+    const kill = () => {
+      socket.destroy();
+      up.destroy();
+    };
+    up.on("error", kill);
+    socket.on("error", kill);
+  } catch {
+    socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
+    socket.destroy();
+  }
+}
+
 /* ---------- server ---------- */
 
 const server = http.createServer(async (req, res) => {
@@ -547,6 +611,7 @@ const server = http.createServer(async (req, res) => {
   }
   try {
     if (url.pathname.startsWith("/api/")) await handleApi(req, res, url, uid);
+    else if (url.pathname.startsWith("/agent/")) await handleAgent(req, res, url);
     else await handleStatic(req, res, url);
   } catch (e) {
     send(res, e.status || 500, { error: e.message });
@@ -557,6 +622,7 @@ const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_BODY });
 
 server.on("upgrade", async (req, socket, head) => {
   const url = new URL(req.url, "http://localhost");
+  if (url.pathname === "/agent/chat") return upgradeAgent(req, socket, head, url);
   if (url.pathname !== "/ws") return socket.destroy();
   const boardId = url.searchParams.get("board") || "";
   const token = url.searchParams.get("token") || "";

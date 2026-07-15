@@ -7,6 +7,26 @@ services:
       - "48372:3199"
     volumes:
       - boards-data:/data
+    environment:
+      - AGENT_UPSTREAM=agent:8000
+
+  agent:
+    build: ./agent
+    container_name: excalidraw-boards-agent
+    restart: unless-stopped
+    expose:
+      - "8000"
+    volumes:
+      - agent-data:/data
+      - ${CLAUDE_DIR:-~/.claude}:/root/.claude # креды Claude CLI (рефреш токена сюда)
+      - ${CLAUDE_JSON:-~/.claude.json}:/seed/.claude.json:ro
+    environment:
+      - CLAUDE_MODEL=${CLAUDE_MODEL:-sonnet}
+      - ASR_UPSTREAM=${ASR_UPSTREAM:-}
+      - TZ=${TZ:-Europe/Moscow}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 volumes:
   boards-data:
+  agent-data:

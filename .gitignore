@@ -3,3 +3,9 @@ dist/
 data/
 .DS_Store
 *.log
+
+# agent sidecar
+agent/.venv/
+__pycache__/
+.env
+docker-compose.override.yml

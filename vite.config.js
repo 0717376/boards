@@ -10,6 +10,7 @@ export default defineConfig({
     proxy: {
       "/api": "http://localhost:3199",
       "/ws": { target: "ws://localhost:3199", ws: true },
+      "/agent": { target: "http://localhost:3199", ws: true },
     },
   },
 });
